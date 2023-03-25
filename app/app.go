@@ -2,22 +2,19 @@ package app
 
 import (
 	"concurrency-chat/Logger"
+	"concurrency-chat/app/handlers"
+	"concurrency-chat/models"
 	"github.com/gorilla/websocket"
 	"net/http"
 )
 
 var (
 	upgrader  = websocket.Upgrader{}
-	broadcast = make(chan Message)
+	broadcast = make(chan models.Message)
 	clients   = make(map[*websocket.Conn]bool) // create a map to store connected clients
 )
 
-type Message struct {
-	Username string `json:"username"`
-	Content  string `json:"content"`
-}
-
-func handleConnection(w http.ResponseWriter, r *http.Request) {
+func HandleConnection(w http.ResponseWriter, r *http.Request) {
 	// upgrade the http connection to a websocket connection
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -30,7 +27,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 
 	// loop to read for incoming messages from the client
 	for {
-		var message Message
+		var message models.Message
 		err := conn.ReadJSON(&message)
 		if err != nil {
 			Logger.ErrorLogger().Printf("error reading and parsing json: %v\n", err)
@@ -42,15 +39,17 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleMessages() {
+func HandleMessages() {
 	for {
 		message := <-broadcast
-		for client := range clients {
-			err := client.WriteJSON(message)
-			if err != nil {
-				Logger.ErrorLogger().Printf("error writing json to client: %v\n", err)
-				delete(clients, client)
-				return
+		if handlers.ReceiveMessage(message) {
+			for client := range clients {
+				err := client.WriteJSON(message)
+				if err != nil {
+					Logger.ErrorLogger().Printf("error writing json to client: %v\n", err)
+					delete(clients, client)
+					return
+				}
 			}
 		}
 	}

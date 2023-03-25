@@ -17,10 +17,9 @@ func main() {
 	// speaking with goroutines
 	// what
 
-	http.HandleFunc("/", app.HandleChat)
-	go app.HandleMessage()
+	http.HandleFunc("/", app.HandleConnection)
+	go app.HandleMessages()
 
 	go http.ListenAndServe(":8080", nil)
-
 	select {}
 }
